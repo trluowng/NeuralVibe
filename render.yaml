@@ -1,7 +1,7 @@
 # Render Blueprint: New > Blueprint > chọn repo này. Các biến sync: false sẽ được hỏi giá trị khi tạo.
 services:
   - type: web
-    name: uneti-taxi-ai
+    name: NeuralVibeTaxiAI
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
