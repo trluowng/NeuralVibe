@@ -8,7 +8,13 @@ const NYC_BOX = { west: -74.27, south: 40.49, east: -73.68, north: 40.92 };
 export const hasGoogleKey = () => Boolean(GOOGLE_KEY);
 
 async function getJson(url, options = {}) {
-  const r = await fetch(url, options);
+  let r;
+  try {
+    r = await fetch(url, { signal: AbortSignal.timeout(8000), ...options });
+  } catch (e) {
+    // "fetch failed" không nói gì: kèm tên máy chủ và mã lỗi mạng (ECONNREFUSED, ETIMEDOUT...)
+    throw new Error(`${new URL(url).hostname}: ${e.cause?.code || e.cause?.message || e.name || e.message}`);
+  }
   const text = await r.text();
   let body;
   try {
@@ -68,24 +74,44 @@ async function geocodePhoton(query, bounded) {
   return { name, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], source: 'OpenStreetMap (Photon)' };
 }
 
+// ArcGIS World Geocoder (Esri) – tra cứu không cần key; vẫn truy cập được từ máy chủ đám mây (Render...)
+// nơi Nominatim / Photon thường chặn dải IP của datacenter
+async function geocodeArcgis(query, bounded) {
+  const extent = bounded ? `&searchExtent=${NYC_BOX.west},${NYC_BOX.south},${NYC_BOX.east},${NYC_BOX.north}` : '';
+  const j = await getJson('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates'
+    + `?f=json&maxLocations=1&countryCode=USA&location=-73.97,40.75&outFields=PlaceName,Place_addr${extent}`
+    + `&SingleLine=${encodeURIComponent(query)}`);
+  const c = j.candidates?.[0];
+  if (!c || c.score < 80) return null;
+  const a = c.attributes || {};
+  const name = [a.PlaceName, a.Place_addr].filter(Boolean).join(', ') || c.address;
+  return { name, lat: c.location.y, lon: c.location.x, source: 'ArcGIS (Esri)' };
+}
+
 export async function geocodePlace({ query }) {
   const nguon = [
-    ...(GOOGLE_KEY ? [() => geocodeGoogle(query)] : []),
-    () => geocodeNominatim(query, true),
-    () => geocodePhoton(query, true),
-    () => geocodeNominatim(query, false),
-    () => geocodePhoton(query, false),
+    ...(GOOGLE_KEY ? [['Google', () => geocodeGoogle(query)]] : []),
+    ['Nominatim', () => geocodeNominatim(query, true)],
+    ['Photon', () => geocodePhoton(query, true)],
+    ['ArcGIS', () => geocodeArcgis(query, true)],
+    ['Nominatim', () => geocodeNominatim(query, false)],
+    ['Photon', () => geocodePhoton(query, false)],
+    ['ArcGIS', () => geocodeArcgis(query, false)],
   ];
-  let loi;
-  for (const thu of nguon) {
+  const loi = new Map();
+  for (const [ten, thu] of nguon) {
+    if (loi.has(ten)) continue; // dịch vụ đã lỗi mạng thì không thử lại lần nữa
     try {
       const r = await thu();
       if (r) return r;
     } catch (e) {
-      loi = e; // dịch vụ lỗi/không truy cập được -> thử nguồn tiếp theo
+      loi.set(ten, e.message); // dịch vụ lỗi/không truy cập được -> thử nguồn tiếp theo
     }
   }
-  throw new Error(loi && !GOOGLE_KEY ? `Không tra được địa điểm "${query}" (${loi.message})` : `Không tìm thấy địa điểm "${query}"`);
+  const chiTiet = [...loi].map(([ten, m]) => `${ten}: ${m}`).join('; ');
+  throw new Error(loi.size === new Set(nguon.map(([ten]) => ten)).size
+    ? `Không tra được địa điểm "${query}" (${chiTiet})`
+    : `Không tìm thấy địa điểm "${query}"`);
 }
 
 async function googleDistance(pickup, dropoff) {
