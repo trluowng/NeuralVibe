@@ -1,0 +1,31 @@
+{
+  "name": "uneti-taxi-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "UNETI Olympic AI 2026 - Vòng 2: dự đoán thời gian chuyến taxi NYC, chatbot LLM orchestrator + Google Maps",
+  "type": "module",
+  "scripts": {
+    "setup": "npm install && python -m pip install -r model_service/requirements.txt",
+    "dev": "concurrently -k -n model,api,web -c yellow,cyan,magenta \"npm:dev:model\" \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:model": "python -m uvicorn main:app --app-dir model_service --port 8000",
+    "dev:api": "node --watch-path=server server/index.js",
+    "dev:web": "vite",
+    "build": "vite build",
+    "start": "npm run build && concurrently -k -n model,app -c yellow,cyan \"npm:dev:model\" \"node server/index.js\"",
+    "build:lookup": "python model_service/build_lookup.py --train"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "openai": "^4.104.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "leaflet": "^1.9.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-leaflet": "^4.2.1",
+    "vite": "^5.4.11"
+  }
+}
