@@ -35,7 +35,8 @@ VAL_RMSLE = goi.get("validation_rmsle")
 
 CATBOOST = None
 duong_cb = os.path.join(MODEL_DIR, "catboost_final.cbm")
-if os.path.exists(duong_cb):
+# USE_CATBOOST=0 để bỏ mô hình đối chiếu, tiết kiệm RAM trên máy chủ nhỏ
+if os.environ.get("USE_CATBOOST", "1") != "0" and os.path.exists(duong_cb):
     CATBOOST = CatBoostRegressor()
     CATBOOST.load_model(duong_cb)
 

@@ -1,0 +1,15 @@
+# Render Blueprint: New > Blueprint > chọn repo này. Các biến sync: false sẽ được hỏi giá trị khi tạo.
+services:
+  - type: web
+    name: uneti-taxi-ai
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.4-mini
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false

@@ -1,5 +1,6 @@
 node_modules/
 dist/
 .env
-data/
+# chỉ lịch sử dự đoán (web-app/data); model_service/data (bảng tra OSRM, bộ Test) cần có khi deploy
+/data/
 __pycache__/

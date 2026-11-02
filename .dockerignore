@@ -1,0 +1,9 @@
+.git
+**/node_modules
+**/dist
+**/.env
+**/__pycache__
+web-app/data
+*.zip
+final_model/ensemble_final.pkl
+final_model/lightgbm_m5.pkl
