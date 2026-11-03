@@ -74,6 +74,12 @@ export default function App() {
     if (ev.tab === 'predict') setTestCommand({ ...ev, nonce: Date.now() });
     setTab(ev.tab);
   };
+  // Điểm đi / điểm đến bấm trên bản đồ -> tab Nhập thủ công điền tọa độ và dự đoán
+  const [picked, setPicked] = useState(null);
+  const pickOnMap = (p) => {
+    setPicked({ ...p, nonce: Date.now() });
+    setTab('form');
+  };
 
   useEffect(() => {
     const load = () => api('/health').then(setHealth).catch(() => setHealth({ model: { ok: false } }));
@@ -140,10 +146,10 @@ export default function App() {
         </section>
         <section className="card pane" hidden={tab !== 'form'}>
           <h2 className="pane-title">{t('formTitle')}</h2>
-          <ManualForm nycNow={health?.nyc_now} onRoute={showRoute} onPrediction={showPrediction} />
+          <ManualForm nycNow={health?.nyc_now} picked={picked} onRoute={showRoute} onPrediction={showPrediction} />
         </section>
         <section className="right">
-          <MapPanel route={route} apiKey={health?.google_maps_browser_key} />
+          <MapPanel route={route} apiKey={health?.google_maps_browser_key} onPick={pickOnMap} />
           <ResultCard prediction={prediction} route={route} />
         </section>
       </main>

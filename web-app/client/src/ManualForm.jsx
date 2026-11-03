@@ -57,7 +57,9 @@ async function resolvePoint(p, fallbackLabel, t) {
   return { lat, lon, label: `${fallbackLabel} (${lat}, ${lon})` };
 }
 
-export default function ManualForm({ nycNow, onRoute, onPrediction }) {
+const asCoords = (p, pt) => ({ ...p, mode: 'coords', lat: pt.lat.toFixed(5), lon: pt.lon.toFixed(5) });
+
+export default function ManualForm({ nycNow, picked, onRoute, onPrediction }) {
   const { t, weekdays } = useI18n();
   const [from, setFrom] = useState(newPoint(PRESETS[0][0], '40.7580', '-73.9855'));
   const [to, setTo] = useState(newPoint(PRESETS[0][1], '40.6413', '-73.7781'));
@@ -76,12 +78,26 @@ export default function ManualForm({ nycNow, onRoute, onPrediction }) {
 
   const setT = (k, v) => setTime((x) => ({ ...x, [k]: Number(v), touched: true }));
 
+  // Hai điểm bấm trên bản đồ: điền vào ô tọa độ rồi dự đoán ngay với thời điểm đang chọn trong form
+  useEffect(() => {
+    if (!picked) return;
+    const f = asCoords(from, picked.pickup);
+    const d = asCoords(to, picked.dropoff);
+    setFrom(f);
+    setTo(d);
+    run(f, d);
+  }, [picked]);
+
   async function submit(e) {
     e.preventDefault();
+    run(from, to);
+  }
+
+  async function run(fromPoint, toPoint) {
     setError('');
     try {
       setBusy(t('busyGeo'));
-      const [pickup, dropoff] = await Promise.all([resolvePoint(from, t('pickup'), t), resolvePoint(to, t('dropoff'), t)]);
+      const [pickup, dropoff] = await Promise.all([resolvePoint(fromPoint, t('pickup'), t), resolvePoint(toPoint, t('dropoff'), t)]);
       setBusy(t('busyRoute'));
       const route = await api('/route', { pickup, dropoff });
       onRoute(route);
