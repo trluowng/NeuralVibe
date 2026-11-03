@@ -292,6 +292,8 @@ svg { flex: none; }
 .map-hint i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .map-hint i.g { background: var(--green); }
 .map-hint i.r { background: var(--red); }
+.map-hint.warn { background: var(--red); color: #fff; }
+.map-hint i.w { background: #fff; }
 .map-body.picking .leaflet-container { cursor: crosshair; }
 .gmaps-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--blue); text-decoration: none; padding: 7px 12px; border-radius: 10px; background: rgba(37, 99, 235, .08); }
 .gmaps-link:hover { background: rgba(37, 99, 235, .15); }

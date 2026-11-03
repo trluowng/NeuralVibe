@@ -149,7 +149,7 @@ export default function App() {
           <ManualForm nycNow={health?.nyc_now} picked={picked} onRoute={showRoute} onPrediction={showPrediction} />
         </section>
         <section className="right">
-          <MapPanel route={route} apiKey={health?.google_maps_browser_key} onPick={pickOnMap} />
+          <MapPanel route={route} apiKey={health?.google_maps_browser_key} onPick={pickOnMap} bounds={m?.bounds} />
           <ResultCard prediction={prediction} route={route} />
         </section>
       </main>

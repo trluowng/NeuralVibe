@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { MapContainer, TileLayer, Polyline, CircleMarker, Rectangle, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import Icon from './Icon.jsx';
 import { useI18n } from './i18n.jsx';
 
@@ -10,6 +10,11 @@ const NYC = { lat: 40.75, lng: -73.97 };
 const ROAD = '#1a73e8';
 const STRAIGHT = '#ea4335';
 const PICKUP = '#188038';
+const AREA = '#f5a800';
+// Vùng dữ liệu Train (từ model service). Cho kéo bản đồ rộng hơn một chút để thấy mép khung; chọn điểm thì chỉ trong khung.
+const PAD = 0.08;
+const MIN_ZOOM = 10;
+const padded = (a) => ({ west: a.west - PAD, east: a.east + PAD, south: a.south - PAD, north: a.north + PAD });
 
 const roadPath = (route) => (route.geometry || []).map(([lon, lat]) => ({ lat, lng: lon }));
 const straightPath = (route) => [
@@ -31,12 +36,13 @@ function loadGoogleMaps(key, lang) {
   return googleLoader;
 }
 
-function GoogleJsMap({ apiKey, route, picking, draft, onMapClick }) {
+function GoogleJsMap({ apiKey, route, picking, draft, area, onMapClick }) {
   const { lang, t } = useI18n();
   const el = useRef(null);
   const map = useRef(null);
   const layers = useRef([]);
   const draftMarkers = useRef([]);
+  const areaRect = useRef(null);
   const clickRef = useRef(onMapClick);
   clickRef.current = onMapClick;
   const [ready, setReady] = useState(false);
@@ -69,15 +75,26 @@ function GoogleJsMap({ apiKey, route, picking, draft, onMapClick }) {
     }).catch((e) => setError(e.message));
   }, [apiKey, route]);
 
-  // Đang chọn điểm: con trỏ chữ thập và ghim tạm các điểm vừa bấm
+  // Giới hạn bản đồ trong vùng dữ liệu Train
+  useEffect(() => {
+    if (!ready || !area) return;
+    map.current.setOptions({ restriction: { latLngBounds: padded(area), strictBounds: false }, minZoom: MIN_ZOOM });
+  }, [ready, area]);
+
+  // Đang chọn điểm: con trỏ chữ thập, khung vùng dữ liệu và ghim tạm các điểm vừa bấm
   useEffect(() => {
     if (!ready) return;
     const gm = window.google.maps;
     map.current.setOptions({ draggableCursor: picking ? 'crosshair' : null });
+    areaRect.current?.setMap(null);
+    areaRect.current = picking && area ? new gm.Rectangle({
+      map: map.current, bounds: area, clickable: false,
+      strokeColor: AREA, strokeWeight: 2, fillColor: AREA, fillOpacity: 0.05,
+    }) : null;
     draftMarkers.current.forEach((m) => m.setMap(null));
     draftMarkers.current = [['A', draft?.pickup], ['B', draft?.dropoff]].filter(([, p]) => p)
       .map(([label, p]) => new gm.Marker({ map: map.current, position: { lat: p.lat, lng: p.lon }, label }));
-  }, [ready, picking, draft]);
+  }, [ready, picking, draft, area]);
 
   return error ? <div className="map-error">⚠️ {error}</div> : <div ref={el} className="gmap" />;
 }
@@ -95,7 +112,24 @@ function ClickPicker({ onMapClick }) {
   return null;
 }
 
-function GoogleTileMap({ route, draft, onMapClick }) {
+// Không cho kéo / thu nhỏ bản đồ ra khỏi vùng dữ liệu Train; đang chọn điểm thì vẽ khung vùng đó
+function AreaLimit({ area, show }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!area) return;
+    const p = padded(area);
+    map.setMaxBounds([[p.south, p.west], [p.north, p.east]]);
+    map.options.maxBoundsViscosity = 1;
+    map.setMinZoom(MIN_ZOOM);
+  }, [area, map]);
+  if (!area || !show) return null;
+  return (
+    <Rectangle bounds={[[area.south, area.west], [area.north, area.east]]} interactive={false}
+      pathOptions={{ color: AREA, weight: 2, dashArray: '6 6', fillColor: AREA, fillOpacity: 0.05 }} />
+  );
+}
+
+function GoogleTileMap({ route, draft, area, picking, onMapClick }) {
   const { lang, t } = useI18n();
   const ll = (pts) => pts.map((p) => [p.lat, p.lng]);
   const dot = (p, color, key) => (
@@ -111,6 +145,7 @@ function GoogleTileMap({ route, draft, onMapClick }) {
         maxZoom={20}
       />
       <ClickPicker onMapClick={onMapClick} />
+      <AreaLimit area={area} show={picking} />
       {route && (
         <>
           <FitBounds route={route} />
@@ -130,11 +165,22 @@ function GoogleTileMap({ route, draft, onMapClick }) {
   );
 }
 
-export default function MapPanel({ route, apiKey, onPick }) {
+export default function MapPanel({ route, apiKey, onPick, bounds }) {
   const { t } = useI18n();
   const [pick, setPick] = useState(null); // null | 'pickup' | 'dropoff': đang chờ bấm điểm nào
   const [draft, setDraft] = useState(null); // các điểm vừa bấm, giữ đến khi tuyến đường mới hiện ra
+  const [outside, setOutside] = useState(false); // vừa bấm ra ngoài vùng dữ liệu
   const road = route?.road_osrm?.km;
+  const area = useMemo(() => (bounds
+    ? { west: bounds.lon[0], east: bounds.lon[1], south: bounds.lat[0], north: bounds.lat[1] }
+    : null), [bounds?.lon?.[0], bounds?.lon?.[1], bounds?.lat?.[0], bounds?.lat?.[1]]);
+  const inside = (p) => !area || (p.lon >= area.west && p.lon <= area.east && p.lat >= area.south && p.lat <= area.north);
+
+  useEffect(() => {
+    if (!outside) return undefined;
+    const id = setTimeout(() => setOutside(false), 2500);
+    return () => clearTimeout(id);
+  }, [outside]);
 
   useEffect(() => setDraft(null), [route]);
   useEffect(() => {
@@ -147,6 +193,12 @@ export default function MapPanel({ route, apiKey, onPick }) {
   }, [pick]);
 
   const onMapClick = (pt) => {
+    if (!pick) return;
+    if (!inside(pt)) {
+      setOutside(true);
+      return;
+    }
+    setOutside(false);
     if (pick === 'pickup') {
       setDraft({ pickup: pt });
       setPick('dropoff');
@@ -178,12 +230,12 @@ export default function MapPanel({ route, apiKey, onPick }) {
       </div>
       <div className={`map-body ${pick ? 'picking' : ''}`}>
         {apiKey
-          ? <GoogleJsMap apiKey={apiKey} route={route} picking={Boolean(pick)} draft={draft} onMapClick={onMapClick} />
-          : <GoogleTileMap route={route} draft={draft} onMapClick={onMapClick} />}
+          ? <GoogleJsMap apiKey={apiKey} route={route} picking={Boolean(pick)} draft={draft} area={area} onMapClick={onMapClick} />
+          : <GoogleTileMap route={route} draft={draft} area={area} picking={Boolean(pick)} onMapClick={onMapClick} />}
         {pick && (
-          <div className="map-hint">
-            <i className={pick === 'pickup' ? 'g' : 'r'} />
-            {pick === 'pickup' ? t('pickHintPickup') : t('pickHintDropoff')}
+          <div className={`map-hint ${outside ? 'warn' : ''}`}>
+            <i className={outside ? 'w' : pick === 'pickup' ? 'g' : 'r'} />
+            {outside ? t('pickOutside') : pick === 'pickup' ? t('pickHintPickup') : t('pickHintDropoff')}
           </div>
         )}
       </div>

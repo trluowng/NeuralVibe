@@ -31,7 +31,8 @@ const DICT = {
     mapTitle: 'Bản đồ Google Maps', openGmaps: 'Mở Google Maps', mapAttr: 'Bản đồ &copy; Google',
     roadLine: 'Đường thực tế', straightLine: 'Đường chim bay',
     pickOnMap: 'Chọn trên bản đồ', pickCancel: 'Hủy chọn',
-    pickHintPickup: 'Bấm lên bản đồ để chọn điểm đi', pickHintDropoff: 'Bấm tiếp để chọn điểm đến · Esc để hủy',
+    pickHintPickup: 'Bấm trong khung vàng (vùng dữ liệu Train) để chọn điểm đi', pickHintDropoff: 'Bấm tiếp để chọn điểm đến · Esc để hủy',
+    pickOutside: 'Ngoài vùng New York của dữ liệu Train – hãy chọn trong khung vàng',
 
     modePlace: 'Nhập vị trí', modeCoords: 'Nhập tọa độ', placePh: 'Tên địa điểm / địa chỉ ở New York',
     latLabel: 'Vĩ độ (lat)', lonLabel: 'Kinh độ (lon)', badCoords: '{p}: tọa độ không hợp lệ',
@@ -81,7 +82,8 @@ const DICT = {
     mapTitle: 'Google Maps', openGmaps: 'Open in Google Maps', mapAttr: 'Map data &copy; Google',
     roadLine: 'Road route', straightLine: 'Straight line',
     pickOnMap: 'Pick on map', pickCancel: 'Cancel',
-    pickHintPickup: 'Click the map to set the pickup', pickHintDropoff: 'Now click to set the dropoff · Esc to cancel',
+    pickHintPickup: 'Click inside the yellow box (training data area) to set the pickup', pickHintDropoff: 'Now click to set the dropoff · Esc to cancel',
+    pickOutside: 'Outside the New York training data area – pick inside the yellow box',
 
     modePlace: 'Place', modeCoords: 'Coordinates', placePh: 'Place name / address in New York',
     latLabel: 'Latitude (lat)', lonLabel: 'Longitude (lon)', badCoords: '{p}: invalid coordinates',
