@@ -7,13 +7,19 @@ const NYC_BOX = { west: -74.27, south: 40.49, east: -73.68, north: 40.92 };
 
 export const hasGoogleKey = () => Boolean(GOOGLE_KEY);
 
-async function getJson(url, options = {}) {
+// Dịch vụ bên ngoài (geocode, Google) bị chặn thì bỏ qua nhanh; dịch vụ mô hình trên máy chủ yếu (Render Free) cần chờ lâu hơn
+const TIMEOUT_EXTERNAL = 8000;
+const TIMEOUT_MODEL = 120000;
+export const TIMEOUT_BATCH = 300000; // dự đoán cả bộ Test; 5 phút cũng là giới hạn chờ header mặc định của fetch trong Node
+
+async function getJson(url, options = {}, timeoutMs = TIMEOUT_EXTERNAL) {
   let r;
   try {
-    r = await fetch(url, { signal: AbortSignal.timeout(8000), ...options });
+    r = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), ...options });
   } catch (e) {
     // "fetch failed" không nói gì: kèm tên máy chủ và mã lỗi mạng (ECONNREFUSED, ETIMEDOUT...)
-    throw new Error(`${new URL(url).hostname}: ${e.cause?.code || e.cause?.message || e.name || e.message}`);
+    const why = e.name === 'TimeoutError' ? `quá ${timeoutMs / 1000}s không phản hồi` : e.cause?.code || e.cause?.message || e.message;
+    throw new Error(`${new URL(url).hostname}: ${why}`);
   }
   const text = await r.text();
   let body;
@@ -26,12 +32,12 @@ async function getJson(url, options = {}) {
   return body;
 }
 
-export function modelApi(path, body) {
+export function modelApi(path, body, timeoutMs = TIMEOUT_MODEL) {
   return getJson(`${MODEL_URL}${path}`, body === undefined ? {} : {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  });
+  }, timeoutMs);
 }
 
 export function googleMapsLinks(pickup, dropoff) {

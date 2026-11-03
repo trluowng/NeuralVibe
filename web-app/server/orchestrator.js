@@ -1,7 +1,7 @@
 // LLM orchestrator: hiểu câu hỏi, tự gọi geocode -> lấy quãng đường (Google Maps/OSRM) -> mô hình LightGBM,
 // rồi giải thích kết quả. Mỗi bước được đẩy về trình duyệt qua callback emit() để hiện tiến trình và bản đồ.
 import OpenAI from 'openai';
-import { geocodePlace, getRouteDistances, predictTripDuration, modelApi, hasGoogleKey } from './tools.js';
+import { geocodePlace, getRouteDistances, predictTripDuration, modelApi, hasGoogleKey, TIMEOUT_BATCH } from './tools.js';
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-5.4-mini';
 const MAX_STEPS = 8;
@@ -179,7 +179,7 @@ async function openTestSet({ action, trip_id }, ctx) {
   const info = { test_set: ts.name, trips: ts.rows.length, submission_file: ts.submissions[0] || null };
 
   if (action === 'predict_all') {
-    const r = await modelApi(`/test-sets/${encodeURIComponent(ts.name)}/predict`, {});
+    const r = await modelApi(`/test-sets/${encodeURIComponent(ts.name)}/predict`, {}, TIMEOUT_BATCH);
     ctx.emit({ type: 'navigate', tab: 'predict', set: ts.name, predictions: r.predictions, seconds: r.seconds });
     const nop = Object.fromEntries(ts.rows.map((x) => [x.trip_id, x.submitted_sec]));
     const lech = r.predictions.filter((p) => nop[p.trip_id])

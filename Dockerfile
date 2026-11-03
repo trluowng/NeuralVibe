@@ -27,6 +27,7 @@ COPY web-app/package.json web-app/start.sh ./
 COPY --from=web /app/node_modules node_modules
 COPY --from=web /app/dist dist
 
-ENV PORT=10000 MODEL_URL=http://127.0.0.1:8000 PYTHONUNBUFFERED=1
+# OMP_NUM_THREADS=1: máy Free của Render chỉ có ~0,1 CPU, LightGBM mở nhiều luồng sẽ tranh nhau và chậm hơn hẳn
+ENV PORT=10000 MODEL_URL=http://127.0.0.1:8000 PYTHONUNBUFFERED=1 OMP_NUM_THREADS=1
 EXPOSE 10000
 CMD ["bash", "start.sh"]

@@ -9,7 +9,7 @@ dotenv.config({ path: [path.join(ROOT, '.env'), path.join(ROOT, '..', '.env')] }
 
 const { default: express } = await import('express');
 const { chat, nycNow, LLM_MODEL } = await import('./orchestrator.js');
-const { geocodePlace, getRouteDistances, predictTripDuration, modelApi, hasGoogleKey } = await import('./tools.js');
+const { geocodePlace, getRouteDistances, predictTripDuration, modelApi, hasGoogleKey, TIMEOUT_BATCH } = await import('./tools.js');
 
 const PORT = Number(process.env.PORT || 8787);
 // Để ngoài server/: ghi file trong thư mục node --watch theo dõi sẽ làm server khởi động lại giữa chừng
@@ -72,7 +72,7 @@ app.get('/api/test-sets/:name/rows', wrap(async (req, res) => {
 }));
 
 app.post('/api/test-sets/:name/predict', wrap(async (req, res) => {
-  res.json(await modelApi(`/test-sets/${encodeURIComponent(req.params.name)}/predict`, {}));
+  res.json(await modelApi(`/test-sets/${encodeURIComponent(req.params.name)}/predict`, {}, TIMEOUT_BATCH));
 }));
 
 app.get('/api/history', (_req, res) => res.json(history));
